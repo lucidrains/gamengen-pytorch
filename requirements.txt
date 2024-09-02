@@ -1,0 +1,1 @@
+vizdoom @ git+https://github.com/mwydmuch/ViZDoom.git

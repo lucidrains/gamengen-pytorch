@@ -11,7 +11,8 @@ license = { file = "LICENSE" }
 keywords = [
     'artificial intelligence',
     'deep learning',
-    'denoising diffusion'
+    'denoising diffusion',
+    'world models'
 ]
 
 classifiers=[
@@ -24,7 +25,9 @@ classifiers=[
 
 dependencies = [
     "torch>=2.0",
-    "einops>=0.8.0"
+    "einx>=0.3.0",
+    "einops>=0.8.0",
+    "gymnasium>=1.0.0a2",
 ]
 
 [project.urls]
