@@ -1,1 +1,4 @@
-from gamengen_pytorch.gamengen import GameNGen
+from gamengen_pytorch.gamengen import (
+    RNNify,
+    GameNGen
+)
