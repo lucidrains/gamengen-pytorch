@@ -1,3 +1,6 @@
+from __future__ import annotations
+from functools import partial
+
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -16,16 +19,31 @@ def default(v, d):
 
 # classes
 
+def record(recorded: list, module, input, output):
+    recorded.append(output)
+
 class RNNify(Module):
     def __init__(
         self,
         model: Module,
-        output_hidden_module_path: str,
-        input_hidden-module_path: str
+        output_module_or_path: str | Module,
+        input_module_or_path: str | Module
     ):
         super().__init__()
-
         self.model = model
+        self.hiddens = []
+
+        name_to_module = {name: module for name, module in model.named_modules()}
+
+        if isinstance(input_module_or_path, str):
+            assert input_module_or_path in name_to_module, f'{input_module_or_path} not found'
+            input_module_or_path = name_to_module[input_module_or_path]
+
+        if isinstance(output_module_or_path, str):
+            assert output_module_or_path in name_to_module, f'{output_module_or_path} not found'
+            output_module_or_path = name_to_module[output_module_or_path]
+
+        output_module_or_path.register_forward_hook(partial(record, self.hiddens))
 
     def forward(
         self,
@@ -33,7 +51,11 @@ class RNNify(Module):
         **kwargs
     ):
         out = self.model(*args, **kwargs)
-        return out
+
+        hidden, = self.hiddens
+        self.hiddens.clear()
+
+        return out, hidden
 
 # main class
 
