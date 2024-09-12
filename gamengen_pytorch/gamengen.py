@@ -19,8 +19,29 @@ def default(v, d):
 
 # classes
 
-def record(recorded: list, module, input, output):
+def record(recorded: list, module, _, output):
     recorded.append(output)
+
+def get_input_hooks():
+
+    hidden_to_be_consumed = None
+
+    def set_hidden(hidden: Tensor | None):
+        nonlocal hidden_to_be_consumed
+        hidden_to_be_consumed = hidden
+
+    def hook(module, inp, output):
+        input_is_tuple = isinstance(inp, tuple)
+
+        if input_is_tuple:
+            inp, *rest = inp
+
+        if exists(hidden_to_be_consumed):
+            inp = inp + hidden_to_be_consumed
+
+        return inp
+
+    return set_hidden, hook
 
 class RNNify(Module):
     def __init__(
@@ -43,17 +64,50 @@ class RNNify(Module):
             assert output_module_or_path in name_to_module, f'{output_module_or_path} not found'
             output_module_or_path = name_to_module[output_module_or_path]
 
-        output_module_or_path.register_forward_hook(partial(record, self.hiddens))
+        hooks = []
+
+        # add hook for output module on model
+        # for extracting the hidden state to be passed back into the model
+
+        output_hook = output_module_or_path.register_forward_hook(partial(record, self.hiddens))
+        hooks.append(output_hook)
+
+        # wire up the input module so it receives the hidden state from previous timestep from output module hook above
+
+        self.set_hidden_for_input, input_forward_hook = get_input_hooks()
+
+        input_hook = input_module_or_path.register_forward_hook(input_forward_hook)
+        hooks.append(input_hook)
+
+        self.hooks = hooks
+
+    def unregister_hooks(self):
+        for hook in self.hooks:
+            hook.remove()
+
+        self.hooks = None
 
     def forward(
         self,
         *args,
+        hiddens_for_rnn: Tensor | None = None,
         **kwargs
     ):
+        assert exists(self.hooks), 'no hooks registered'
+
+        self.set_hidden_for_input(hiddens_for_rnn)
+
+        # run inputs through the model as usual
+        # hooks should be triggered for input to incorporate the hidden being passed in, and then also record the hidden state output
+
         out = self.model(*args, **kwargs)
 
+        # get the next hidden state
+
         hidden, = self.hiddens
+
         self.hiddens.clear()
+        self.set_hidden_for_input(None)
 
         return out, hidden
 
