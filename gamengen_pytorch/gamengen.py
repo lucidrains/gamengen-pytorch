@@ -17,14 +17,18 @@ def exists(v):
 def default(v, d):
     return v if exists(v) else d
 
+def identity(t):
+    return t
+
 # classes
 
 def record(recorded: list, module, _, output):
     recorded.append(output)
 
-def get_input_hooks():
+def get_input_hooks(transform_hidden: Callable | None = None):
 
     hidden_to_be_consumed = None
+    transform_hidden = default(transform_hidden, identity)
 
     def set_hidden(hidden: Tensor | None):
         nonlocal hidden_to_be_consumed
@@ -38,7 +42,7 @@ def get_input_hooks():
             inp, *rest = inp
 
         if exists(hidden_to_be_consumed):
-            inp = inp + hidden_to_be_consumed
+            inp = inp + transform_hidden(hidden_to_be_consumed)
 
             # automatically unset the hidden after first use
             hidden_to_be_consumed = None
@@ -52,10 +56,14 @@ class RNNify(Module):
         self,
         model: Module,
         output_module_or_path: str | Module,
-        input_module_or_path: str | Module
+        input_module_or_path: str | Module,
+        hidden_to_input_fn: Module | None = None
     ):
         super().__init__()
         self.model = model
+
+        self.hidden_to_input_fn = hidden_to_input_fn
+
         self.hiddens = []
 
         name_to_module = {name: module for name, module in model.named_modules()}
@@ -78,7 +86,7 @@ class RNNify(Module):
 
         # wire up the input module so it receives the hidden state from previous timestep from output module hook above
 
-        self.set_hidden_for_input, input_forward_hook = get_input_hooks()
+        self.set_hidden_for_input, input_forward_hook = get_input_hooks(self.hidden_to_input_fn)
 
         input_hook = input_module_or_path.register_forward_hook(input_forward_hook)
         hooks.append(input_hook)
