@@ -31,6 +31,7 @@ def get_input_hooks():
         hidden_to_be_consumed = hidden
 
     def hook(module, inp, output):
+        nonlocal hidden_to_be_consumed
         input_is_tuple = isinstance(inp, tuple)
 
         if input_is_tuple:
@@ -38,6 +39,9 @@ def get_input_hooks():
 
         if exists(hidden_to_be_consumed):
             inp = inp + hidden_to_be_consumed
+
+            # automatically unset the hidden after first use
+            hidden_to_be_consumed = None
 
         return inp
 
@@ -104,10 +108,9 @@ class RNNify(Module):
 
         # get the next hidden state
 
-        hidden, = self.hiddens
+        *_, hidden = self.hiddens
 
         self.hiddens.clear()
-        self.set_hidden_for_input(None)
 
         return out, hidden
 
