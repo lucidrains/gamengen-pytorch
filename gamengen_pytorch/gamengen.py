@@ -9,6 +9,10 @@ from torch.nn import Module, ModuleList
 import einx
 from einops import rearrange
 
+from x_transformers import (
+    Attention
+)
+
 # helper functions
 
 def exists(v):
