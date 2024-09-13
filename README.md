@@ -1,3 +1,5 @@
+<img src="./gamengen.png" width="400px"></img>
+
 ## GameNGen - Pytorch (wip)
 
 Implementation of a framework for <a href="https://gamengen.github.io/">Gamengen</a> in Pytorch
